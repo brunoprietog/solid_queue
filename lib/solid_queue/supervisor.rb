@@ -2,7 +2,7 @@
 
 module SolidQueue
   class Supervisor
-    include AppExecutor, Signals, Procline
+    include Signals, Runner, Instrumentation
 
     class << self
       def start(mode: :work, load_configuration_from: nil)
@@ -20,11 +20,13 @@ module SolidQueue
     def start
       procline "starting"
 
-      setup_pidfile
-      register_signal_handlers
-      start_process_prune
+      instrument "start_supervisor", supervised: runners do
+        setup_pidfile
+        register_signal_handlers
+        start_process_prune
 
-      start_runners
+        start_runners
+      end
 
       procline "started"
 

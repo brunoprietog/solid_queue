@@ -12,6 +12,10 @@ class SolidQueue::Scheduler
     @polling_interval = options[:polling_interval]
   end
 
+  def short_description
+    "#{batch_size}, #{polling_interval}"
+  end
+
   private
     def run
       batch = SolidQueue::ScheduledExecution.next_batch(batch_size)

@@ -14,7 +14,10 @@ module SolidQueue
         SolidQueue.process_alive_threshold    = app.config.solid_queue.process_alive_threshold || 5.minutes
         SolidQueue.shutdown_timeout           = app.config.solid_queue.shutdown_timeout || 5.seconds
         SolidQueue.supervisor_pidfile         = app.config.solid_queue.supervisor_pidfile || app.root.join("tmp", "pids", "solid_queue_supervisor.pid")
+
+        SolidQueue.logger = app.config.solid_queue.logger || ::Rails.logger
       end
+
     end
 
     initializer "solid_queue.app_executor", before: :run_prepare_callbacks do |app|
@@ -23,10 +26,8 @@ module SolidQueue
       SolidQueue.app_executor = config.solid_queue.app_executor
     end
 
-    initializer "solid_queue.logger" do |app|
-      ActiveSupport.on_load(:solid_queue) do
-        self.logger = app.logger
-      end
+    initializer "solid_queue.log_subscriber" do |app|
+      SolidQueue::LogSubscriber.attach_to :solid_queue
     end
   end
 end

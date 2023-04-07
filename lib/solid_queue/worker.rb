@@ -15,6 +15,10 @@ class SolidQueue::Worker
     @pool = Concurrent::FixedThreadPool.new(@pool_size)
   end
 
+  def short_description
+    "#{queue}: #{pool_size}, #{polling_interval}"
+  end
+
   private
     def run
       executions = SolidQueue::ReadyExecution.claim(queue, pool_size)

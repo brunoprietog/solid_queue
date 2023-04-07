@@ -8,8 +8,9 @@ module SolidQueue
       include ActiveSupport::Callbacks
       define_callbacks :start, :run, :shutdown
 
-      include AppExecutor, Procline
-      include ProcessRegistration, Interruptible
+      include AppExecutor, Interruptible
+      include ProcessRegistration
+      include Instrumentation
 
       attr_accessor :supervisor_pid
     end
@@ -20,7 +21,7 @@ module SolidQueue
       @stopping = false
       register_signal_handlers
 
-      SolidQueue.logger.info("[SolidQueue] Starting #{self}")
+      instrument "start_supervised_process", process: self, mode: mode
 
       run_callbacks(:start) do
         if mode == :async
