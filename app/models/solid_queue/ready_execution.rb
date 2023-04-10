@@ -6,14 +6,16 @@ class SolidQueue::ReadyExecution < SolidQueue::Execution
 
   class << self
     def claim(queues, limit)
-      candidate_job_ids = []
+      instrument "claim_jobs", limit: limit do |payload|
+        candidate_job_ids = []
 
-      transaction do
-        candidate_job_ids = query_candidates(queues, limit)
-        lock(candidate_job_ids)
+        transaction do
+          candidate_job_ids = query_candidates(queues, limit)
+          lock(candidate_job_ids)
+        end
+
+        payload[:claimed_size] = candidate_job_ids.size
       end
-
-      claimed_executions_for(candidate_job_ids)
     end
 
     private

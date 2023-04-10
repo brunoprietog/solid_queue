@@ -10,20 +10,32 @@ class SolidQueue::ClaimedExecutionTest < ActiveSupport::TestCase
 
   test "claim all jobs for existing queue" do
     assert_difference -> { SolidQueue::ReadyExecution.count } => -@jobs.count, -> { SolidQueue::ClaimedExecution.count } => @jobs.count do
-      SolidQueue::ReadyExecution.claim("fixtures", @jobs.count + 1)
+      subscribe_to_notification_events do
+        SolidQueue::ReadyExecution.claim("fixtures", @jobs.count + 1)
+      end
     end
+
+    assert_notified_events [ "claim_jobs", { limit: @jobs.count + 1, claimed_size: @jobs.count } ]
   end
 
   test "claim jobs for queue without jobs at the moment" do
     assert_no_difference [ -> { SolidQueue::ReadyExecution.count }, -> { SolidQueue::ClaimedExecution.count } ] do
-      SolidQueue::ReadyExecution.claim("some_non_existing_queue", 10)
+      subscribe_to_notification_events do
+        SolidQueue::ReadyExecution.claim("some_non_existing_queue", 10)
+      end
     end
+
+    assert_notified_events [ "claim_jobs", { limit: 10, claimed_size: 0 } ]
   end
 
   test "claim some jobs for existing queue" do
     assert_difference -> { SolidQueue::ReadyExecution.count } => -2, -> { SolidQueue::ClaimedExecution.count } => 2 do
-      SolidQueue::ReadyExecution.claim("fixtures", 2)
+      subscribe_to_notification_events do
+        SolidQueue::ReadyExecution.claim("fixtures", 2)
+      end
     end
+
+    assert_notified_events [ "claim_jobs", { limit: 2, claimed_size: 2 } ]
   end
 
   test "perform job successfully" do
@@ -31,10 +43,13 @@ class SolidQueue::ClaimedExecutionTest < ActiveSupport::TestCase
     claimed_execution = prepare_and_claim_job(job)
 
     assert_difference -> { SolidQueue::ClaimedExecution.count }, -1 do
-      claimed_execution.perform(@process)
+      subscribe_to_notification_events do
+        claimed_execution.perform(@process)
+      end
     end
 
     assert job.reload.finished?
+    assert_notified_events [ "perform_job", { process: @process, execution: claimed_execution, job_id: job.id, active_job_id: job.active_job_id } ]
   end
 
   test "perform job that fails" do
@@ -42,13 +57,16 @@ class SolidQueue::ClaimedExecutionTest < ActiveSupport::TestCase
     claimed_execution = prepare_and_claim_job(job)
 
     assert_difference -> { SolidQueue::ClaimedExecution.count } => -1, -> { SolidQueue::FailedExecution.count } => 1 do
-      claimed_execution.perform(@process)
+      subscribe_to_notification_events do
+        claimed_execution.perform(@process)
+      end
     end
 
     assert_not job.reload.finished?
     assert job.failed?
 
     assert_equal @process, claimed_execution.process
+    assert_notified_events [ "perform_job", { process: @process, execution: claimed_execution, job_id: job.id, active_job_id: job.active_job_id, exception: RuntimeError.new } ]
   end
 
   test "job failures are reported via Rails error subscriber" do
@@ -70,10 +88,14 @@ class SolidQueue::ClaimedExecutionTest < ActiveSupport::TestCase
     claimed_execution = prepare_and_claim_job(job)
 
     assert_difference -> { SolidQueue::ClaimedExecution.count } => -1, -> { SolidQueue::ReadyExecution.count } => 1 do
-      claimed_execution.release
+      subscribe_to_notification_events do
+        SolidQueue::ClaimedExecution.release_all
+      end
     end
 
     assert job.reload.ready?
+
+    assert_notified_events [ "release_jobs", { size: 1 } ]
   end
 
   private
@@ -88,5 +110,20 @@ class SolidQueue::ClaimedExecutionTest < ActiveSupport::TestCase
       yield
     ensure
       Rails.error.unsubscribe(subscriber) if Rails.error.respond_to?(:unsubscribe)
+    end
+
+    def subscribe_to_notification_events
+      callback = lambda { |*args| EventsBuffer.add ActiveSupport::Notifications::Event.new(*args) }
+
+      ActiveSupport::Notifications.subscribed(callback, /solid_queue/) do
+        yield
+      end
+    end
+
+    def assert_notified_events(*events)
+      assert_equal events.size, EventsBuffer.size
+      events.each do |action, payload|
+        assert EventsBuffer.include?(action, payload), "not found #{action} event with #{payload}"
+      end
     end
 end

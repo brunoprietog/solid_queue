@@ -2,7 +2,7 @@
 
 module SolidQueue
   class Supervisor
-    include Signals, Runner, Instrumentation
+    include Signals, Runner
 
     class << self
       def start(mode: :work, load_configuration_from: nil)

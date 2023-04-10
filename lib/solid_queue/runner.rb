@@ -21,7 +21,7 @@ module SolidQueue
       @stopping = false
       register_signal_handlers
 
-      instrument "start_supervised_process", process: self, mode: mode
+      instrument "start_supervised_process", mode: mode
 
       run_callbacks(:start) do
         if mode == :async
@@ -61,10 +61,14 @@ module SolidQueue
         loop do
           break if shutting_down?
 
-          run_callbacks(:run) { run }
+          instrument "supervised_process_iteration" do
+            run_callbacks(:run) { run }
+          end
         end
       ensure
-        run_callbacks(:shutdown) { shutdown }
+        instrument "shutdown_supervised_process" do
+          run_callbacks(:shutdown) { shutdown }
+        end
       end
 
       def shutting_down?

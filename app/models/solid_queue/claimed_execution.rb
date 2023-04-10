@@ -1,7 +1,7 @@
 class SolidQueue::ClaimedExecution < SolidQueue::Execution
   belongs_to :process
 
-  class Result < Struct.new(:success, :error)
+  class Result < Struct.new(:success, :exception)
     def success?
       success
     end
@@ -12,23 +12,26 @@ class SolidQueue::ClaimedExecution < SolidQueue::Execution
       claimed_at = Time.current
       rows = Array(job_ids).map { |id| { job_id: id, created_at: claimed_at } }
       insert_all(rows) if rows.any?
-
-      SolidQueue.logger.info("[SolidQueue] Claimed #{rows.size} jobs at #{claimed_at}")
     end
 
     def release_all
-      includes(:job).each(&:release)
+      instrument "release_jobs", size: count do
+        includes(:job).each(&:release)
+      end
     end
   end
 
   def perform(process)
-    claimed_by(process)
+    instrument("perform_job", process: process, job_id: job.id, active_job_id: job.active_job_id) do |payload|
+      claimed_by(process)
 
-    result = execute
-    if result.success?
-      finished
-    else
-      failed_with(result.error)
+      result = execute
+      if result.success?
+        finished
+      else
+        failed_with(result.exception)
+        payload[:exception] = result.exception
+      end
     end
   end
 
@@ -42,7 +45,6 @@ class SolidQueue::ClaimedExecution < SolidQueue::Execution
   private
     def claimed_by(process)
       update!(process: process)
-      SolidQueue.logger.info("[SolidQueue] Performing job #{job.id} - #{job.active_job_id}")
     end
 
     def execute
@@ -57,16 +59,12 @@ class SolidQueue::ClaimedExecution < SolidQueue::Execution
         job.finished
         destroy!
       end
-
-      SolidQueue.logger.info("[SolidQueue] Performed job #{job.id} - #{job.active_job_id}")
     end
 
-    def failed_with(error)
+    def failed_with(exception)
       transaction do
-        job.failed_with(error)
+        job.failed_with(exception)
         destroy!
       end
-
-      SolidQueue.logger.info("[SolidQueue] Failed job #{job.id} - #{job.active_job_id}")
     end
 end
