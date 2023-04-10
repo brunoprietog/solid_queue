@@ -2,6 +2,6 @@ class AddToBufferJob < ApplicationJob
   queue_as :background
 
   def perform(arg)
-    JobBuffer.add(arg)
+    JobsBuffer.add(arg)
   end
 end

@@ -10,10 +10,10 @@ class RaisingJob < ApplicationJob
   def perform(raising, attempts, *)
     raising = raising.shift if raising.is_a?(Array)
     if raising && executions < attempts
-      JobBuffer.add("Raised #{raising} for the #{executions.ordinalize} time")
+      JobsBuffer.add("Raised #{raising} for the #{executions.ordinalize} time")
       raise raising, "This is a #{raising} exception"
     else
-      JobBuffer.add("Successfully completed job")
+      JobsBuffer.add("Successfully completed job")
     end
   end
 end

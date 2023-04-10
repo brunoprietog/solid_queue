@@ -52,7 +52,7 @@ class SolidQueue::ClaimedExecutionTest < ActiveSupport::TestCase
   end
 
   test "job failures are reported via Rails error subscriber" do
-    subscriber = ErrorBuffer.new
+    subscriber = ErrorsBuffer.new
 
     with_error_subscriber(subscriber) do
       job = solid_queue_jobs(:raising_job)

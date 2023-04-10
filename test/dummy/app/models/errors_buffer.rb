@@ -1,4 +1,4 @@
-class ErrorBuffer
+class ErrorsBuffer
   attr_reader :errors
 
   def initialize

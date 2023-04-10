@@ -10,11 +10,11 @@ class WorkerTest < ActiveSupport::TestCase
 
   teardown do
     @worker.stop if @worker.running?
-    JobBuffer.clear
+    JobsBuffer.clear
   end
 
   test "errors on claiming executions are reported via Rails error subscriber" do
-    subscriber = ErrorBuffer.new
+    subscriber = ErrorsBuffer.new
     Rails.error.subscribe(subscriber)
 
     SolidQueue::ClaimedExecution.any_instance.expects(:update!).raises(RuntimeError.new("everything is broken"))

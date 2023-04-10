@@ -1,4 +1,4 @@
-module JobBuffer
+module JobsBuffer
   extend self
 
   mattr_accessor :values

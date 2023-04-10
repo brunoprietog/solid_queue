@@ -17,7 +17,8 @@ end
 
 class ActiveSupport::TestCase
   teardown do
-    JobBuffer.clear
+    JobsBuffer.clear
+    EventsBuffer.clear
     File.delete(SolidQueue.supervisor_pidfile) if File.exist?(SolidQueue.supervisor_pidfile)
   end
 

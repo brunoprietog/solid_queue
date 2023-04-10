@@ -11,7 +11,7 @@ class JobsLifecycleTest < ActiveSupport::TestCase
     @worker.stop
     @scheduler.stop
 
-    JobBuffer.clear
+    JobsBuffer.clear
   end
 
   test "enqueue and run jobs" do
@@ -23,7 +23,7 @@ class JobsLifecycleTest < ActiveSupport::TestCase
 
     wait_for_jobs_to_finish_for(5.seconds)
 
-    assert_equal [ "hey", "ho" ], JobBuffer.values.sort
+    assert_equal [ "hey", "ho" ], JobsBuffer.values.sort
   end
 
   test "schedule and run jobs" do
@@ -39,14 +39,14 @@ class JobsLifecycleTest < ActiveSupport::TestCase
 
     wait_for_jobs_to_finish_for(5.seconds)
 
-    assert_equal 1, JobBuffer.size
-    assert_equal "I'm scheduled", JobBuffer.last_value
+    assert_equal 1, JobsBuffer.size
+    assert_equal "I'm scheduled", JobsBuffer.last_value
 
     travel_to 5.days.from_now
 
     wait_for_jobs_to_finish_for(5.seconds)
 
-    assert_equal 2, JobBuffer.size
-    assert_equal "I'm scheduled later", JobBuffer.last_value
+    assert_equal 2, JobsBuffer.size
+    assert_equal "I'm scheduled later", JobsBuffer.last_value
   end
 end
